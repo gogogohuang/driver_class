@@ -5,7 +5,6 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include "cdata_ioctl.h"
-#include "cdata_def.h"
 
 /*define*/
 #define NAME "driver_test"
@@ -18,37 +17,89 @@ int main(int argc, char const* argv[])
     char    *fb;  
     int     size = 0 ;
     char    name[LEN_OF_NAME+1];
-    int     num=123;
-    /*pid_t   child;*/
-
-    /*child = fork();*/
+    char    buf[LEN_OF_NAME];
+    int     num;
+    pid_t   child;
+ 
+    child = fork();
 
     fd = open("/dev/cdata", O_RDWR);
-    
     if(fd < 0){
         printf("open Fail \n");
         return -1;
     }else{
         printf("open success\n");
     }
-    //fb = (char *)mmap(0, 1024, PROT_READ|PROT_WRITE, MAP_SHARED, fd ,0);
-    /*lseek(fd, 0 , SEEK_SET);*/
-    /*if((size = read(fd, buf, 10)) < 0){*/
-        /*printf("no data \n");*/
-    /*}*/
-    /*if((size = write( fd, buf, 10 )) < 0)*/
-    /*{*/
-         /*printf("wirte \n");*/
- 
-    /*}*/
-    /*ioctl(fd, IOCTL_WRITE, num);*/
-    /*printf("num = %d \n", num);*/
+    if(child){
+        goto parent;
+    }
+
+child:
+    ioctl(fd, IOCTL_SetName, "c");
+    ioctl(fd, IOCTL_SetName, "h");
+    ioctl(fd, IOCTL_SetName, "i");
+    ioctl(fd, IOCTL_SetName, "l");
+    ioctl(fd, IOCTL_SetName, "d");
+    usleep(100);
+    ioctl(fd, IOCTL_SetName, "h");
+    ioctl(fd, IOCTL_SyncName, buf);
+    printf("buf_child = %s \n", buf);
+
+    goto done;
+
+parent:
+    usleep(50);
+    ioctl(fd, IOCTL_SetName, "p");
+    ioctl(fd, IOCTL_SetName, "a");
+    ioctl(fd, IOCTL_SetName, "r");
+    ioctl(fd, IOCTL_SetName, "e");
+    ioctl(fd, IOCTL_SetName, "n");
+    ioctl(fd, IOCTL_SetName, "t");
+    ioctl(fd, IOCTL_SetName, "p");
+    ioctl(fd, IOCTL_SyncName, buf);
+    printf("buf_parent = %s \n", buf);
+    ioctl(fd, IOCTL_EmptyName);
+    ioctl(fd, IOCTL_SyncName, buf);
+    printf("buf_parent = %s \n", buf);
+    printf("after empty \nbuf_parent = %s \n", buf);
     
-    /*printf("plz enter dev name \n");*/
-    /*scanf("%s", name);*/
-    /*printf("NAME = %s \n", name);*/
-    sprintf(name,"%s",NAME);
-    ioctl(fd, IOCTL_SetName, name);
+    goto done;
+
+done:
     close(fd);
     return 0;
+    /*printf("enter function code \n");*/
+    /*scanf("%d",&num);*/
+    
+    /*switch (num) {*/
+        /*case 0:*/
+            /*printf("read \n");*/
+            /*lseek(fd, 0 , SEEK_SET);*/
+            /*if((size = read(fd, buf, 10)) < 0){*/
+                /*printf("no data \n");*/
+            /*}*/
+            /*break;*/
+        /*case 1:*/
+            /*printf("write \n");*/
+            /*if((size = write( fd, buf, 10 )) < 0){*/
+                /*printf("no data \n");*/
+            /*}*/
+            /*break;*/
+        /*case 2:*/
+            /*printf("IOCTL_WRITE\n");*/
+            /*ioctl(fd, IOCTL_WRITE, num);*/
+            /*break; */
+        /*case 3:*/
+            /*printf("IOCTL_SetName\n");*/
+            /*printf("plz enter dev name \n");*/
+            /*scanf("%s", name);*/
+            /*ioctl(fd, IOCTL_SetName, name);*/
+            /*break;*/
+        /*default:*/
+            /*printf("no function \n");*/
+            /*break;*/
+    /*}*/
+   
+    /*close(fd);*/
+    /*return 0;*/
 }

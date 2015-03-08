@@ -16,25 +16,34 @@
 #include <asm/uaccess.h>
 #include <linux/slab.h>
 #include <linux/ioctl.h>
-#include "cdata_def.h"
+#include "cdata_ioctl.h"
 
 /*define*/
 #define DEV_MAJOR   123
 #define DEV_NAME    "cdata"
 #define DEV_IOCTLID 0xD0
-#define IOCTL_WRITE _IOW(DEV_IOCTLID, 1, int)
-#define IOCTL_SetName _IOWR(DEV_IOCTLID, 2, int)
 
-static char *buf;
+struct string_cdata{
+    char    *buf;
+    int     idx;
+};
+
 
 /*fop implementation*/
 static int cdata_open(struct inode *inode, struct file *filp)
-{
+{   
+    struct string_cdata *cd_string;
+    /*initialize*/
+    cd_string = (struct string_cdata*)kmalloc(sizeof(struct string_cdata), GFP_KERNEL);
+    cd_string->buf = (char *)kmalloc(LEN_OF_NAME, GFP_KERNEL);
+    cd_string->idx = 0;
+    filp->private_data = (void *)cd_string;
+    
     printk(KERN_INFO "open CDATA file = %p \n", filp);
-    /*if(MINOR(inode->i_rdev) != 0){*/
-        /*printk("error minor number\n");*/
-        /*return -ENODEV;*/
-    /*}*/
+    if(MINOR(inode->i_rdev) != 0){
+        printk("error minor number\n");
+        return -ENODEV;
+    }
 	return 0;
 }
 static ssize_t cdata_read(struct file *flip, char * fp, loff_t * loff ){
@@ -49,29 +58,56 @@ static ssize_t cdata_write(struct file *flip, char * fp, loff_t * loff ){
 
 
 static int cdata_close(struct inode *inode, struct file * flip){
-    printk(KERN_INFO "close CDATA\n");
+    struct string_cdata *ioctl_string = (struct string_cdata*)flip->private_data;
+    printk(KERN_INFO "close CDATA name = %s\n", ioctl_string->buf);
     return 0;
 }
 
 static int cdata_ioctl(struct file * flip, unsigned int cmd, unsigned long arg){
+    struct string_cdata *ioctl_string; 
+    ioctl_string = (struct string_cdata *)flip->private_data; 
+    int idx ;
+    idx = ioctl_string->idx;
+    
     switch (cmd) {
+        case IOCTL_Init:
+            printk(KERN_INFO "IOCTL_Init\n");
+            return 0;
+        
         case IOCTL_WRITE:
-            printk(KERN_INFO "IOCTL_WRITE arg = s d\n", (char *)arg);
+            printk(KERN_INFO "IOCTL_WRITE \n");
             return 0;
 
         case IOCTL_SetName:
-            if(strlen((char *)arg) > LEN_OF_NAME){
+            if(ioctl_string->idx > LEN_OF_NAME){
                 printk(KERN_ALERT "the length is over %d \n",LEN_OF_NAME);
                 return -EFAULT;
             }
             /*check memory is valid or invalid*/ 
-            if(copy_from_user(buf, (char *)arg, LEN_OF_NAME)){
+            if(copy_from_user(&ioctl_string->buf[idx++], (char *)arg, 1)){
                 printk(KERN_ALERT "can not copy data from user\n");
-                return -EFAULT; 
+                return -EFAULT;
             }
-            printk(KERN_INFO "IOCTL_SetName Name = %s\n", buf);
+            /*set \0*/            
+            ioctl_string->buf[idx] = '\0';
+            ioctl_string->idx = idx;
+            flip->private_data = (void *)ioctl_string;
+            //printk(KERN_INFO "IOCTL_SetName Name_priv = %s index = %d \n", ioctl_string->buf, ioctl_string->idx);
             return 0;
 
+        case IOCTL_EmptyName:
+            printk(KERN_INFO "IOCTL_EmptyName\n");
+            memset(ioctl_string->buf, 0 , LEN_OF_NAME);
+            idx = 0;
+            ioctl_string->idx = idx;
+            return 0;
+        
+        case IOCTL_SyncName:
+            printk(KERN_INFO "IOCTL_SyncName\n");
+            copy_to_user((char *)arg , ioctl_string->buf,  ioctl_string->idx+1);
+            flip->private_data = ioctl_string;
+            return 0;
+        
         default:
             printk(KERN_INFO "No IOCTL Command \n");
             return -ENOTTY;
@@ -92,7 +128,6 @@ struct file_operations cdata_fops = {
 int cdata_init_module(void)
 {
     printk(KERN_INFO "CDATA V1.0 \n");
-    buf = (char *)kmalloc(LEN_OF_NAME, GFP_KERNEL);
     if(register_chrdev(DEV_MAJOR, DEV_NAME, &cdata_fops) < 0){
         printk(KERN_ALERT "can not register this devie\r\n");
         return -1;
@@ -104,7 +139,6 @@ int cdata_init_module(void)
 void cdata_cleanup_module(void)
 {
     printk(KERN_INFO "unregister CDATA \n");
-    kfree(buf);
     unregister_chrdev(DEV_MAJOR,DEV_NAME);
 
 }
