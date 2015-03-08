@@ -8,9 +8,9 @@
 #define IOCTL_EmptyName     _IO(0xD0, 3)
 #define IOCTL_SyncName      _IOR(0xD0, 4, int)
 #define IOCTL_Init          _IO(0xD0, 5)
+#define IOCTL_SetAll        _IOW(0xD0, 6, int)
 
 
-
-#define LEN_OF_NAME 32
+#define LEN_OF_NAME 8
 
 #endif

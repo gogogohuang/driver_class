@@ -21,7 +21,7 @@ int main(int argc, char const* argv[])
     int     num;
     pid_t   child;
  
-    child = fork();
+  //  child = fork();
 
     fd = open("/dev/cdata", O_RDWR);
     if(fd < 0){
@@ -30,42 +30,37 @@ int main(int argc, char const* argv[])
     }else{
         printf("open success\n");
     }
-    if(child){
-        goto parent;
-    }
+    /*if(child){*/
+        /*goto parent;*/
+    /*}*/
 
-child:
-    ioctl(fd, IOCTL_SetName, "c");
-    ioctl(fd, IOCTL_SetName, "h");
-    ioctl(fd, IOCTL_SetName, "i");
-    ioctl(fd, IOCTL_SetName, "l");
-    ioctl(fd, IOCTL_SetName, "d");
-    usleep(100);
-    ioctl(fd, IOCTL_SetName, "h");
-    ioctl(fd, IOCTL_SyncName, buf);
-    printf("buf_child = %s \n", buf);
+/*child:*/
+    /*ioctl(fd, IOCTL_SetName, "c");*/
+    /*ioctl(fd, IOCTL_SetName, "h");*/
+    /*ioctl(fd, IOCTL_SetName, "i");*/
+    /*ioctl(fd, IOCTL_SetName, "l");*/
+    /*ioctl(fd, IOCTL_SetName, "d");*/
+    /*usleep(100);*/
+    /*ioctl(fd, IOCTL_SetName, "h");*/
+    /*ioctl(fd, IOCTL_SyncName, buf);*/
+    /*printf("buf_child = %s \n", buf);*/
 
-    goto done;
+    /*goto done;*/
 
-parent:
-    usleep(50);
-    ioctl(fd, IOCTL_SetName, "p");
-    ioctl(fd, IOCTL_SetName, "a");
-    ioctl(fd, IOCTL_SetName, "r");
-    ioctl(fd, IOCTL_SetName, "e");
-    ioctl(fd, IOCTL_SetName, "n");
-    ioctl(fd, IOCTL_SetName, "t");
-    ioctl(fd, IOCTL_SetName, "p");
-    ioctl(fd, IOCTL_SyncName, buf);
-    printf("buf_parent = %s \n", buf);
-    ioctl(fd, IOCTL_EmptyName);
+//parent:
+    /*if((size = write( fd, buf, 10 )) < 0){*/
+                /*printf("no data \n");*/
+    /*}*/
+    write(fd, "hello1", 6) ;
+    printf("111\n");
+    write(fd, "hello2", 6) ;
+    printf("111\n");
     ioctl(fd, IOCTL_SyncName, buf);
     printf("buf_parent = %s \n", buf);
-    printf("after empty \nbuf_parent = %s \n", buf);
     
-    goto done;
+    //goto done;
 
-done:
+//done:
     close(fd);
     return 0;
     /*printf("enter function code \n");*/

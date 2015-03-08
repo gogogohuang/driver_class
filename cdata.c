@@ -16,6 +16,7 @@
 #include <asm/uaccess.h>
 #include <linux/slab.h>
 #include <linux/ioctl.h>
+#include <linux/wait.h>
 #include "cdata_ioctl.h"
 
 /*define*/
@@ -46,13 +47,43 @@ static int cdata_open(struct inode *inode, struct file *filp)
     }
 	return 0;
 }
-static ssize_t cdata_read(struct file *flip, char * fp, loff_t * loff ){
+static ssize_t cdata_read(struct file *flip, const char * buf, size_t size, loff_t * off ){
     printk(KERN_INFO "read CDATA  data\n");
     return 0;
 }
 
-static ssize_t cdata_write(struct file *flip, char * fp, loff_t * loff ){
+static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff_t * off ){
+    struct string_cdata *ioctl_string = (struct string_cdata*)flip->private_data;
+    wait_queue_head_t my_queue;
+    int idx,i;
+    int retval;
+    idx = ioctl_string -> idx;
+    init_waitqueue_head(&my_queue);
+    
     printk(KERN_INFO "write CDATA  data\n");
+    
+    for(i=0; i<size; i++){
+        if(idx < LEN_OF_NAME){
+            if(copy_from_user(&ioctl_string->buf[idx++], &buf[idx], 1)){
+                printk(KERN_ALERT "can not copy data from user\n");
+                return -EFAULT;
+            }
+        }else{
+            retval = wait_event_interruptible_timeout(my_queue, idx == 0, 3000);
+            if (retval == -ERESTARTSYS) {
+                return -ERESTARTSYS;
+            }
+            /*interruptible_sleep_on_timeout(&my_queue, jiffies+1);*/
+            idx = 0;
+            memset(ioctl_string->buf, 0, LEN_OF_NAME);
+        }
+    }
+    printk(KERN_INFO "idx = %d \n",idx);
+    /*set \0*/            
+    ioctl_string->buf[idx] = '\0';
+    ioctl_string->idx = idx;
+    flip->private_data = (void *)ioctl_string;
+    //printk(KERN_INFO "IOCTL_SetName Name_priv = %s index = %d \n", ioctl_string->buf, ioctl_string->idx);
     return 0;
 }
 
@@ -77,6 +108,24 @@ static int cdata_ioctl(struct file * flip, unsigned int cmd, unsigned long arg){
         case IOCTL_WRITE:
             printk(KERN_INFO "IOCTL_WRITE \n");
             return 0;
+
+        case IOCTL_SetAll:
+            if(idx > LEN_OF_NAME){
+                printk(KERN_ALERT "the length is over %d \n",LEN_OF_NAME);
+                return -EFAULT;
+            }
+            /*check memory is valid or invalid*/ 
+            if(copy_from_user(&ioctl_string->buf[idx++], (char *)arg, strlen((char *)arg))){
+                printk(KERN_ALERT "can not copy data from user\n");
+                return -EFAULT;
+            }
+            /*set \0*/            
+            ioctl_string->buf[idx++] = '\0';
+            ioctl_string->idx = idx;
+            flip->private_data = (void *)ioctl_string;
+            //printk(KERN_INFO "IOCTL_SetName Name_priv = %s index = %d \n", ioctl_string->buf, ioctl_string->idx);
+            return 0;
+
 
         case IOCTL_SetName:
             if(ioctl_string->idx > LEN_OF_NAME){
