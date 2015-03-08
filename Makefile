@@ -1,5 +1,6 @@
 obj-m := cdata.o
 
+#depene on ur running linux kernel
 KDIR := /usr/src/linux-headers-3.8.0-44-generic
 PWD := $(shell pwd)
 
