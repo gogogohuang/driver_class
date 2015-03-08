@@ -52,11 +52,11 @@ int main(int argc, char const* argv[])
                 /*printf("no data \n");*/
     /*}*/
     write(fd, "hello1", 6) ;
-    CDATA_DEBUG_PRINTF("111\n");
+    CDATA_DEBUG_PRINT("111\n");
     write(fd, "hello2", 6) ;
-    CDATA_DEBUG_PRINTF("111\n");
+    CDATA_DEBUG_PRINT("111\n");
     ioctl(fd, IOCTL_SyncName, buf);
-    printf("buf_parent = %s \n", buf);
+    CDATA_DEBUG_PRINT("buf_parent = %s \r\n", buf);
     
     //goto done;
 

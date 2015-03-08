@@ -10,12 +10,12 @@
 #define IOCTL_Init          _IO(0xD0, 5)
 #define IOCTL_SetAll        _IOW(0xD0, 6, int)
 
-#define Cdata_Debug_Enable 1
+#define Cdata_Debug_Enable 0
 
 #if  Cdata_Debug_Enable
 #define CDATA_DEBUG_PRINT printf
 #else
-#define CDATA_DEBUG_PRINT (...)
+#define CDATA_DEBUG_PRINT(...)
 #endif
 
 #define LEN_OF_NAME 8
