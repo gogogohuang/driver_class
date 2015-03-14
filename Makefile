@@ -4,8 +4,9 @@ obj-m := cdata.o
 KDIR := /usr/src/linux-headers-3.8.0-44-generic
 PWD := $(shell pwd)
 
+
 default:
 		$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
-		
+		gcc -o go gogo_test.c		
 clean:
-		rm -rf *.o *.ko .*cmd modules.* Module.* .tmp_versions *.mod.c
+		rm -rf *.o *.ko .*cmd modules.* Module.* .tmp_versions *.mod.c go
