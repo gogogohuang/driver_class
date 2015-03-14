@@ -21,48 +21,41 @@ int main(int argc, char const* argv[])
     int     num;
     pid_t   child;
  
-  //  child = fork();
+    //child = fork();
 
     fd = open("/dev/cdata", O_RDWR);
     if(fd < 0){
-        printf("open Fail \n");
+        CDATA_DEBUG_PRINT("open Fail \n");
         return -1;
     }else{
-        printf("open success\n");
+        CDATA_DEBUG_PRINT("open success\n");
     }
     /*if(child){*/
         /*goto parent;*/
     /*}*/
 
 /*child:*/
-    /*ioctl(fd, IOCTL_SetName, "c");*/
-    /*ioctl(fd, IOCTL_SetName, "h");*/
-    /*ioctl(fd, IOCTL_SetName, "i");*/
-    /*ioctl(fd, IOCTL_SetName, "l");*/
-    /*ioctl(fd, IOCTL_SetName, "d");*/
-    /*usleep(100);*/
-    /*ioctl(fd, IOCTL_SetName, "h");*/
-    /*ioctl(fd, IOCTL_SyncName, buf);*/
-    /*printf("buf_child = %s \n", buf);*/
 
+   /*printf("buf_child = %s \n", buf);*/
+    /*CDATA_DEBUG_PRINT("child end\n");*/
     /*goto done;*/
 
 //parent:
-    /*if((size = write( fd, buf, 10 )) < 0){*/
-                /*printf("no data \n");*/
-    /*}*/
-    write(fd, "hello1", 6) ;
-    CDATA_DEBUG_PRINT("111\n");
-    write(fd, "hello2", 6) ;
-    CDATA_DEBUG_PRINT("111\n");
+    
+    while(1){
+        printf("while\n");
+        write(fd, "hello1", 6) ;
+    }
     ioctl(fd, IOCTL_SyncName, buf);
     CDATA_DEBUG_PRINT("buf_parent = %s \r\n", buf);
     
-    //goto done;
+    goto done;
 
-//done:
+done:
     close(fd);
     return 0;
+
+
     /*printf("enter function code \n");*/
     /*scanf("%d",&num);*/
     

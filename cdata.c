@@ -28,8 +28,10 @@ struct string_cdata{
     char    *buf;
     int     idx;
     wait_queue_head_t wq;
+    struct timer_list cdata_timer;
 };
 
+void flush_buffer(void *priv);
 
 /*fop implementation*/
 static int cdata_open(struct inode *inode, struct file *filp)
@@ -40,6 +42,8 @@ static int cdata_open(struct inode *inode, struct file *filp)
     cd_string->buf = (char *)kmalloc(LEN_OF_NAME, GFP_KERNEL);
     cd_string->idx = 0;
     init_waitqueue_head(&cd_string->wq);
+    init_timer(&cd_string->cdata_timer);
+         
     filp->private_data = (void *)cd_string;
     
     printk(KERN_INFO "open CDATA file = %p \n", filp);
@@ -54,36 +58,76 @@ static ssize_t cdata_read(struct file *flip, const char * buf, size_t size, loff
     return 0;
 }
 
+void flush_buffer(void *priv){
+    printk(KERN_ALERT "flush buffer and wake up AP\n");
+    struct string_cdata *buf = (struct string_cdata*)priv;
+    buf->idx = 0;
+    wake_up(&buf->wq);
+}
+
+//process context
 static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff_t * off ){
     struct string_cdata *ioctl_string = (struct string_cdata*)flip->private_data;
     int idx,i;
     int retval;
     idx = ioctl_string -> idx;
-    
+    struct timer_list *timer = &ioctl_string->cdata_timer;
+    DECLARE_WAITQUEUE(wait, current); //current is global variable, pointer to process.
+
     printk(KERN_INFO "write CDATA  data\n");
     
     for(i=0; i<size; i++){
-        if(idx < LEN_OF_NAME){
-            if(copy_from_user(&ioctl_string->buf[idx++], &buf[idx], 1)){
-                printk(KERN_ALERT "can not copy data from user\n");
-                return -EFAULT;
-            }
-        }else{
-            printk(KERN_ALERT "buffer full\n");
-            /*retval = wait_event_interruptible_timeout(my_queue, idx == 0, 3000);*/
-            /*if (retval == -ERESTARTSYS) {*/
-                /*return -ERESTARTSYS;*/
-            /*}*/
-            interruptible_sleep_on_timeout(&ioctl_string->wq, jiffies+3000);
+        if(idx>=LEN_OF_NAME){
+            printk(KERN_ALERT "buffer full \n");
+            
+            timer->expires = jiffies +  KERNEL_DELAY_TIMER;
+            timer->data =(unsigned long) ioctl_string;
+            timer->function = flush_buffer;
+           
+            add_timer(timer);
+            //interruptible_sleep_on
+            //----------------------------------------------------
+            /*For multi-core, or it will happen race condition*/
+            add_wait_queue(&ioctl_string->wq, &wait);
+            set_current_state(TASK_INTERRUPTIBLE);
+            schedule();
+            /*wake_up(&wp) will chagne current state. so we did not change it by ourselves*/
+            //set_current_state(TASK_RUNNING);
+            remove_wait_queue(&ioctl_string->wq, &wait);
+            //---------------------------------------------------
+            
             idx = ioctl_string->idx; // buffer clean up, so read idx back to local variable.
+        }
 
+        copy_from_user(&ioctl_string->buf[idx], &buf[idx], 1);
+        idx++;    
+
+        /*if(idx < LEN_OF_NAME){*/
+            /*if(copy_from_user(&ioctl_string->buf[idx++], &buf[idx], 1)){*/
+                /*printk(KERN_ALERT "can not copy data from user\n");*/
+                /*return -EFAULT;*/
+            /*}*/
+        /*}else{*/
+            /*printk(KERN_ALERT "buffer full\n");*/
+
+            /*Here do kernel scheduling*/
+           
+            /*interruptible_sleep_on(&ioctl_string->wq);*/
+           
+            /*Here flush buffer*/
+            /*flush_buffer(flip->private_data);*/
+
+            
+            /*idx = ioctl_string->idx; // buffer clean up, so read idx back to local variable.*/
+            /*printk("idx = %d \n",idx);*/
+            /*flush_buffer(cdata);*/
             /*idx = 0;*/
             /*memset(ioctl_string->buf, 0, LEN_OF_NAME);*/
         }
-    }
-    printk(KERN_INFO "idx = %d \n",idx);
+    /*}*/
+    /*printk(KERN_INFO "idx = %d \n",idx);*/
     /*set \0*/            
-    /*ioctl_string->buf[idx] = '\0';*/
+    ioctl_string->buf[idx] = '\0';
     ioctl_string->idx = idx;
     flip->private_data = (void *)ioctl_string;
     //printk(KERN_INFO "IOCTL_SetName Name_priv = %s index = %d \n", ioctl_string->buf, ioctl_string->idx);
