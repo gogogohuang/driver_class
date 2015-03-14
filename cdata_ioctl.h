@@ -10,7 +10,7 @@
 #define IOCTL_Init          _IO(0xD0, 5)
 #define IOCTL_SetAll        _IOW(0xD0, 6, int)
 
-#define Cdata_Debug_Enable 0
+#define Cdata_Debug_Enable 1
 
 #if  Cdata_Debug_Enable
 #define CDATA_DEBUG_PRINT printf

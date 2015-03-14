@@ -27,6 +27,7 @@
 struct string_cdata{
     char    *buf;
     int     idx;
+    wait_queue_head_t wq;
 };
 
 
@@ -38,6 +39,7 @@ static int cdata_open(struct inode *inode, struct file *filp)
     cd_string = (struct string_cdata*)kmalloc(sizeof(struct string_cdata), GFP_KERNEL);
     cd_string->buf = (char *)kmalloc(LEN_OF_NAME, GFP_KERNEL);
     cd_string->idx = 0;
+    init_waitqueue_head(&cd_string->wq);
     filp->private_data = (void *)cd_string;
     
     printk(KERN_INFO "open CDATA file = %p \n", filp);
@@ -54,11 +56,9 @@ static ssize_t cdata_read(struct file *flip, const char * buf, size_t size, loff
 
 static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff_t * off ){
     struct string_cdata *ioctl_string = (struct string_cdata*)flip->private_data;
-    wait_queue_head_t my_queue;
     int idx,i;
     int retval;
     idx = ioctl_string -> idx;
-    init_waitqueue_head(&my_queue);
     
     printk(KERN_INFO "write CDATA  data\n");
     
@@ -69,18 +69,21 @@ static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff
                 return -EFAULT;
             }
         }else{
-            retval = wait_event_interruptible_timeout(my_queue, idx == 0, 3000);
-            if (retval == -ERESTARTSYS) {
-                return -ERESTARTSYS;
-            }
-            /*interruptible_sleep_on_timeout(&my_queue, jiffies+1);*/
-            idx = 0;
-            memset(ioctl_string->buf, 0, LEN_OF_NAME);
+            printk(KERN_ALERT "buffer full\n");
+            /*retval = wait_event_interruptible_timeout(my_queue, idx == 0, 3000);*/
+            /*if (retval == -ERESTARTSYS) {*/
+                /*return -ERESTARTSYS;*/
+            /*}*/
+            interruptible_sleep_on_timeout(&ioctl_string->wq, jiffies+3000);
+            idx = ioctl_string->idx; // buffer clean up, so read idx back to local variable.
+
+            /*idx = 0;*/
+            /*memset(ioctl_string->buf, 0, LEN_OF_NAME);*/
         }
     }
     printk(KERN_INFO "idx = %d \n",idx);
     /*set \0*/            
-    ioctl_string->buf[idx] = '\0';
+    /*ioctl_string->buf[idx] = '\0';*/
     ioctl_string->idx = idx;
     flip->private_data = (void *)ioctl_string;
     //printk(KERN_INFO "IOCTL_SetName Name_priv = %s index = %d \n", ioctl_string->buf, ioctl_string->idx);
