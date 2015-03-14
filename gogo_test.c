@@ -43,7 +43,7 @@ int main(int argc, char const* argv[])
 //parent:
     
     while(1){
-        printf("while\n");
+        printf(" write data \n");
         write(fd, "hello1", 6) ;
     }
     ioctl(fd, IOCTL_SyncName, buf);
