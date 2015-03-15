@@ -31,7 +31,7 @@ struct string_cdata{
     wait_queue_head_t wq;
     struct timer_list cdata_timer;
 };
-static void flush_buffer(int *index);
+static void flush_buffer(void *priv);
 
 /*fop implementation*/
 static int cdata_open(struct inode *inode, struct file *filp)
@@ -58,11 +58,10 @@ static ssize_t cdata_read(struct file *flip, const char * buf, size_t size, loff
     return 0;
 }
 
-static void flush_buffer(int *index){
+static void flush_buffer(void *priv){
 
-    struct string_cdata *cd_buf = container_of(index, struct string_cdata, idx);
+    struct string_cdata *cd_buf = (struct string_cdata*)priv;
     printk(KERN_INFO "flush buffer string = %d \n", cd_buf->idx);
-    *index = 0;
 
     wake_up(&cd_buf->wq);
 }    
@@ -74,9 +73,12 @@ static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff
     int retval;
     idx = cd -> idx;
     struct timer_list *timer = &cd->cdata_timer;
-    DEFINE_WAIT(wait); //current is global variable, pointer to process.
-    //DECLAIRE_WAITQUEUE
-    
+ #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,0)
+    DECLARE_WAITQUEUE(wait, current);
+#else
+    DEFINE_WAIT(wait);
+#endif
+   
     printk(KERN_INFO "write CDATAdata\n");
     
     for(i=0; i<size; i++){
@@ -88,7 +90,7 @@ static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff
             timer->function = flush_buffer;
            
             add_timer(timer);
-#if 0
+#if LINUX_VERSION_CODE <= KERNEL_VERSION (2,6,0)
             /* interruptible_sleep_on */
             /* non-atomic */
             /* For multi-core, or it will happen race condition */
@@ -99,7 +101,7 @@ static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff
             prepare_to_wait(&cd->wq, &wait, TASK_INTERRUPTIBLE); 
 #endif
             schedule();
-#if 0
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,0)
             /* not-atomic */
             /* wake_up(&wp) will chagne current state. so we did not change it by ourselves*/
             set_current_state(TASK_RUNNING);
@@ -208,7 +210,11 @@ struct file_operations __cdata_fops = {
     read:       cdata_read,
     write:      cdata_write,
     release:    cdata_close,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(3,0,0)
     unlocked_ioctl:      cdata_ioctl,
+#else
+    ioctl:      cdata_ioctl,
+#endif
 };
 
 static struct miscdevice cdata_mics = {
