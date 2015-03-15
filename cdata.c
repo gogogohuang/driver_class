@@ -31,7 +31,7 @@ struct string_cdata{
     wait_queue_head_t wq;
     struct timer_list cdata_timer;
 };
-void flush_buffer(void *priv);
+static void flush_buffer(int *index);
 
 /*fop implementation*/
 static int cdata_open(struct inode *inode, struct file *filp)
@@ -58,12 +58,14 @@ static ssize_t cdata_read(struct file *flip, const char * buf, size_t size, loff
     return 0;
 }
 
-void flush_buffer(void *priv){
-    printk(KERN_ALERT "flush buffer and wake up AP\n");
-    struct string_cdata *buf = (struct string_cdata*)priv;
-    buf->idx = 0;
-    wake_up(&buf->wq);
-}
+static void flush_buffer(int *index){
+
+    struct string_cdata *cd_buf = container_of(index, struct string_cdata, idx);
+    printk(KERN_INFO "flush buffer string = %d \n", cd_buf->idx);
+    *index = 0;
+
+    wake_up(&cd_buf->wq);
+}    
 
 //process context
 static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff_t * off ){
@@ -82,7 +84,7 @@ static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff
             printk(KERN_ALERT "buffer full \n");
             
             timer->expires = jiffies +  KERNEL_DELAY_TIMER;
-            timer->data = (unsigned long)cd;
+            timer->data = (unsigned long *) &cd->idx;
             timer->function = flush_buffer;
            
             add_timer(timer);
