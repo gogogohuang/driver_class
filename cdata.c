@@ -75,8 +75,8 @@ static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff
     idx = cd -> idx;
     struct timer_list *timer = &cd->cdata_timer;
     DEFINE_WAIT(wait); //current is global variable, pointer to process.
-    //DECLARE_WAITQUEUE
-
+    //DECLAIRE_WAITQUEUE
+    
     printk(KERN_INFO "write CDATAdata\n");
     
     for(i=0; i<size; i++){
@@ -105,38 +105,17 @@ static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff
             set_current_state(TASK_RUNNING);
             remove_wait_queue(&cd->wq, &wait);
 #else       
-            /* atomic*/
+            /* atomic */
             finish_wait(&cd->wq, &wait);
 #endif
             idx = cd->idx; // buffer clean up, so read idx back to local variable.
         }
-
+        
+        //lock data
         copy_from_user(&cd->buf[idx], &buf[idx], 1);
         idx++;    
 
-        /*if(idx < LEN_OF_NAME){*/
-            /*if(copy_from_user(&ioctl_string->buf[idx++], &buf[idx], 1)){*/
-                /*printk(KERN_ALERT "can not copy data from user\n");*/
-                /*return -EFAULT;*/
-            /*}*/
-        /*}else{*/
-            /*printk(KERN_ALERT "buffer full\n");*/
-
-            /*Here do kernel scheduling*/
-           
-            /*interruptible_sleep_on(&ioctl_string->wq);*/
-           
-            /*Here flush buffer*/
-            /*flush_buffer(flip->private_data);*/
-
-            
-            /*idx = ioctl_string->idx; // buffer clean up, so read idx back to local variable.*/
-            /*printk("idx = %d \n",idx);*/
-            /*flush_buffer(cdata);*/
-            /*idx = 0;*/
-            /*memset(ioctl_string->buf, 0, LEN_OF_NAME);*/
-        }
-    /*}*/
+    }
     /*printk(KERN_INFO "idx = %d \n",idx);*/
     /*set \0*/            
     cd->buf[idx] = '\0';

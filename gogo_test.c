@@ -42,10 +42,14 @@ int main(int argc, char const* argv[])
 
 //parent:
     
-    while(1){
+    /*while(1){*/
         printf(" write data \n");
         write(fd, "hello1", 6) ;
-    }
+        write(fd, "hello1", 6) ;
+        write(fd, "hello1", 6) ;
+ 
+ 
+        /*}*/
     ioctl(fd, IOCTL_SyncName, buf);
     CDATA_DEBUG_PRINT("buf_parent = %s \r\n", buf);
     
