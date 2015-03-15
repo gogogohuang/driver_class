@@ -12,11 +12,15 @@
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
 #include <linux/input.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
 #include <linux/slab.h>
 #include <linux/ioctl.h>
 #include <linux/wait.h>
+#include <linux/version.h> 
+
+
+#include <asm/io.h>
+#include <asm/uaccess.h>
+
 #include "cdata_ioctl.h"
 
 /*define*/
@@ -26,8 +30,12 @@
 #define DEV_IOCTLID 0xD0
 
 struct string_cdata{
-    char    *buf;
-    int     idx;
+    unsigned char   *buf;
+    unsigned int    idx;
+    unsigned int    offset;
+    unsigned char   *iomem;
+    unsigned char   *cur;
+
     wait_queue_head_t wq;
     struct timer_list cdata_timer;
 };
@@ -41,6 +49,10 @@ static int cdata_open(struct inode *inode, struct file *filp)
     cd_string = (struct string_cdata*)kmalloc(sizeof(struct string_cdata), GFP_KERNEL);
     cd_string->buf = (char *)kmalloc(LEN_OF_NAME, GFP_KERNEL);
     cd_string->idx = 0;
+    cd_string->offset = 0;
+    cd_string->iomem = (unsigned char*)ioremap(0x33F00000, 240*320*8);
+    cd_string->cur= cd_string->iomem;
+
     init_waitqueue_head(&cd_string->wq);
     init_timer(&cd_string->cdata_timer);
          
@@ -59,21 +71,41 @@ static ssize_t cdata_read(struct file *flip, const char * buf, size_t size, loff
 }
 
 static void flush_buffer(void *priv){
+    struct string_cdata *cd_buf = (struct string_cdata *)priv;
+    unsigned int offset;
+    unsigned int idx;
+    unsigned char *buf;
+    unsigned char *iomem;
+    int i;
 
-    struct string_cdata *cd_buf = (struct string_cdata*)priv;
-    printk(KERN_INFO "flush buffer string = %d \n", cd_buf->idx);
+    offset = cd_buf->offset;
+    idx = cd_buf->idx;
+    buf = cd_buf->buf; 
+    iomem = cd_buf->cur;
+
+    for(i=0; i<LEN_OF_NAME ; i++){
+        writeb(buf[i],iomem++);
+        
+        if(iomem >= (cd_buf->iomem+320*240*4)){
+            iomem = cd_buf->iomem;
+        }
+    }
+    printk(KERN_INFO "offset = %d\n",offset);
+    cd_buf->idx = 0;
+    cd_buf->cur = iomem;
 
     wake_up(&cd_buf->wq);
 }    
 
 //process context
 static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff_t * off ){
-    struct string_cdata *cd = (struct string_cdata*)flip->private_data;
-    int idx,i;
-    int retval;
-    idx = cd -> idx;
+    
+    struct string_cdata *cd = (struct string_cdata *)flip->private_data;
     struct timer_list *timer = &cd->cdata_timer;
- #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,0)
+    int i;
+    unsigned int idx = cd->idx;
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,0)
     DECLARE_WAITQUEUE(wait, current);
 #else
     DEFINE_WAIT(wait);
@@ -83,12 +115,11 @@ static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff
     
     for(i=0; i<size; i++){
         if(idx>=LEN_OF_NAME){
-            printk(KERN_ALERT "buffer full \n");
+            printk(KERN_ALERT "cdata:buffer_full idx = %d \n",idx);
             
             timer->expires = jiffies +  KERNEL_DELAY_TIMER;
-            timer->data = (unsigned long *) &cd->idx;
             timer->function = flush_buffer;
-           
+            timer->data = (unsigned long)cd;
             add_timer(timer);
 #if LINUX_VERSION_CODE <= KERNEL_VERSION (2,6,0)
             /* interruptible_sleep_on */
@@ -114,15 +145,14 @@ static ssize_t cdata_write(struct file *flip, const char *buf, size_t size, loff
         }
         
         //lock data
-        copy_from_user(&cd->buf[idx], &buf[idx], 1);
+        copy_from_user(&cd->buf[idx], &buf[i], 1);
         idx++;    
 
     }
     /*printk(KERN_INFO "idx = %d \n",idx);*/
     /*set \0*/            
-    cd->buf[idx] = '\0';
     cd->idx = idx;
-    flip->private_data = (void *)cd;
+    //flip->private_data = (void *)cd;
     //printk(KERN_INFO "IOCTL_SetName Name_priv = %s index = %d \n", ioctl_string->buf, ioctl_string->idx);
     return 0;
 }
@@ -136,8 +166,8 @@ static int cdata_close(struct inode *inode, struct file * flip){
 
 static int cdata_ioctl(struct file * flip, unsigned int cmd, unsigned long arg){
     struct string_cdata *ioctl_string; 
+    unsigned int idx ;
     ioctl_string = (struct string_cdata *)flip->private_data; 
-    int idx ;
     idx = ioctl_string->idx;
     
     switch (cmd) {

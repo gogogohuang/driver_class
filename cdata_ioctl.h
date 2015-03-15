@@ -11,7 +11,7 @@
 #define IOCTL_SetAll        _IOW(0xD0, 6, int)
 
 #define KERNEL_DELAY_TIMER  300
-#define LEN_OF_NAME 8
+#define LEN_OF_NAME 100
 #define Cdata_Debug_Enable 1
 
 #if  Cdata_Debug_Enable
